@@ -1,2 +1,2 @@
-# Projects
-Digital System Design
+# Matrix-Vector Multiplier
+Part1 of this system is designed to multiply a 3*3 matrix with a vector of length 3. I modified the design in Part2 so it could either choose to load a new matrix if one is provided, or heads to add just the new vector and utilizes the already available matrix in the memory for the next operating cycle. Controlpath in Part3 handles parameterized matrix and vector size(n*n matrix and n-length vector). The design in Part3 is optimized for performance in Part4.
