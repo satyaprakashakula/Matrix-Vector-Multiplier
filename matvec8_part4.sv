@@ -477,9 +477,3 @@ module capacity(clk, clearcap, incrcap, decrcap, countcap);
 endmodule
 
 
-
-
-
-  
-
-
