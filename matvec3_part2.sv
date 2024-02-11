@@ -2,7 +2,7 @@
 
 module memory(clk, data_in, data_out, addr, wr_en);
 	parameter WIDTH=16, SIZE=64;
-	localparam LOGSIZE=$clog2(SIZE);
+	localparam LOGSIZE=$clog2(SIZE); 
 	input [WIDTH-1:0] data_in;
 	output logic [WIDTH-1:0] data_out;
 	input [LOGSIZE-1:0] addr;
