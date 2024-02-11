@@ -1,2 +1,4 @@
-# Matrix-Vector Multiplier
-Part1 of this system is designed to multiply a 3x3 matrix with a vector of length 3 using a simplified variation of ARM’s	AXI4-Stream Protocol. I modified the design in Part2 so it could either choose to load a new matrix if one is provided, or heads to add just the new vector and utilizes the already available matrix in the memory for the next operating cycle. Controlpath in Part3 handles parameterized matrix and vector size(n*n matrix and n-length vector). The design in Part3 is optimized for performance in Part4.
+- Constructed a synthesizable matrix-vector multiplier unit with ARM’s AXI4-Stream Interconnect protocol
+- Boosted throughput by 3x and increased frequency by 1.2x by introducing data parallelism and pipelining. 
+- The design exhibits superior throughput performance as matrix dimensions increase. Tested the design using linear
+  test benches and randomization with 100 percent functional coverage
