@@ -76,11 +76,12 @@ module datapath (clk, reset, input_data, wr_en_w, addr_w, wr_en_x, addr_x, clear
 	input [LOGSIZEX-1:0] addr_x;
 	
 	logic signed [13:0] wr, xr;
-	logic signed [27:0] product, sum, preout;
+	logic signed [27:0] product, sum, preout, in_temp, out_temp;
 	
 	memory #(14, 64) mw(clk, input_data, wr, addr_w, wr_en_w);
 	memory #(14, 8) mx(clk, input_data, xr, addr_x, wr_en_x);
 
+/*
 	always_comb begin
 		product = wr*xr;
 		sum = output_data + product;
@@ -92,8 +93,26 @@ module datapath (clk, reset, input_data, wr_en_w, addr_w, wr_en_x, addr_x, clear
 		else
 			preout = sum;
 	end
+*/
+
+	always_comb begin
+		in_temp = wr*xr;
+		sum = output_data + out_temp;
+		if ((out_temp > 0) && (output_data > 0) && (sum < 0))
+			preout = 28'h7ffffff;
+		else if ((out_temp < 0) && (output_data < 0) && (sum > 0))
+			preout = 28'h8000000;
+		else
+			preout = sum;
+	end
 	
 	
+	always_ff @(posedge clk) begin
+		if (reset == 1)
+			out_temp <= 0;
+		else
+			out_temp <= in_temp;
+	end
 
 	always_ff @(posedge clk) begin
 		if (clear_acc == 1)
@@ -115,6 +134,7 @@ module controlpath (state, nextState, new_matrix, clk, reset, input_valid, input
 	output logic output_valid, en_acc;
 	logic incrw, clearw, incrx, clearx, incrwaddr, clearwaddr, incrxaddr, clearxaddr;
 	logic finish;
+	logic en_temp;
 	
 	parameter [1:0] START = 0, WRITE = 1, READ = 2;
 	output logic [1:0] state, nextState;
@@ -170,19 +190,25 @@ module controlpath (state, nextState, new_matrix, clk, reset, input_valid, input
 	always_ff @(posedge clk) begin
 		if (state == WRITE) begin
 			if (countx>S-1)
-				output_valid<=0;
+				output_valid<=0;	
 		end
 		else if (state == READ) begin
 			if (countw<S*S+1 && finish==0) begin
 				if (output_valid==0 || output_ready==0) begin
 					if (output_valid==0) begin
-						if (countx<S) 
-							en_acc<=1;
-						else if (countx==S) begin
-							en_acc<=0;
-							output_valid<=1;
+						if (countx<S) begin
+							en_temp<=1;
+							en_acc<=en_temp;
 						end
-					end
+						else if (countx==S) begin
+							en_temp<=0;
+							en_acc<=en_temp;
+						end
+						else if (countx==S+1) begin
+							output_valid<=1;
+							en_acc<=en_temp;
+						end
+					end  
 				end
 				else
 					output_valid<=0;
@@ -197,20 +223,19 @@ module controlpath (state, nextState, new_matrix, clk, reset, input_valid, input
 	
 	
 	assign clearw = ((state == START) || ((state == WRITE) && (countx>S-1)) || ((state == READ) && (finish==1)));
-	assign clearx = ((state == START) || ((state == WRITE) && (countx>S-1)) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx==S)) || ((state == READ) && (finish==1)));
+	assign clearx = ((state == START) || ((state == WRITE) && (countx>S-1)) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx==S+1)) || ((state == READ) && (finish==1)));
 	assign clear_acc = ((state == START) || ((state == READ) && (finish==1)) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==1 && output_ready==1) && (countw<S*S)));
 	assign input_ready = ((state == WRITE) && (countx<S));
 	assign wr_en_w = ((state == WRITE) && (countx<S) && (input_valid==1) && ((countw==0 && countx==0 && new_matrix==1) || (countw>0 && countw<S*S)));
 	assign incrw = (((state == WRITE) && (countx<S) && (input_valid==1) && ((countw==0 && countx==0 && new_matrix==1) || (countw>0 && countw<S*S))) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx<S)));
 	assign wr_en_x = ((state == WRITE) && (countx<S) && (input_valid==1) && ((countw==0 && countx==0 && new_matrix==0) || ((countx>0 && countx<S) || (countw>S*S-1))));
-	assign incrx = (((state == WRITE) && (countx<S) && (input_valid==1) && ((countw==0 && countx==0 && new_matrix==0) || ((countx>0 && countx<S) || (countw>S*S-1)))) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx<S)));
+	assign incrx = (((state == WRITE) && (countx<S) && (input_valid==1) && ((countw==0 && countx==0 && new_matrix==0) || ((countx>0 && countx<S) || (countw>S*S-1)))) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx<S+1)));
 	assign finish = ((state == READ) && (output_valid==1 && output_ready==1) && (countw==S*S));
 	
 	assign clearwaddr = ((state == START) || ((state == WRITE) && (countx>S-1)) || ((state == READ) && (finish==1)));
-	assign clearxaddr = ((state == START) || ((state == WRITE) && (countx>S-1)) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx==S)) || ((state == READ) && (finish==1)));
+	assign clearxaddr = ((state == START) || ((state == WRITE) && (countx>S-1)) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx==S+1)) || ((state == READ) && (finish==1)));
 	assign incrwaddr = (((state == WRITE) && (countx<S) && (input_valid==1) && ((countw==0 && countx==0 && new_matrix==1) || (countw>0 && countw<S*S))) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx<S)));
-	assign incrxaddr = (((state == WRITE) && (countx<S) && (input_valid==1) && ((countw==0 && countx==0 && new_matrix==0) || ((countx>0 && countx<S) || (countw>S*S-1)))) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx<S)));
-	
+	assign incrxaddr = (((state == WRITE) && (countx<S) && (input_valid==1) && ((countw==0 && countx==0 && new_matrix==0) || ((countx>0 && countx<S) || (countw>S*S-1)))) || ((state == READ) && (countw<S*S+1 && finish==0) && (output_valid==0 || output_ready==0) && (output_valid==0) && (countx<S+1)));
 	
 	
 endmodule
