@@ -1,4 +1,4 @@
-// Testbench Project 2 Part 3
+// Testbench
 
 // This testbench does the following:
 //    - opens file random_in.hex (input values to simulate) and stores its values in an array
